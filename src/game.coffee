@@ -540,7 +540,7 @@ class GameBoard extends createjs.Container
 
 class TubetasticGame
   constructor: (canvasName) ->
-    SeedRandom.init("TubeTastic!")
+    SeedRandom.init(Math.random())
     # d 'TubetasticGame'
     AsyncSoundManager.load 'sh'
     AsyncSoundManager.load 'boom'

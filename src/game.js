@@ -1122,7 +1122,7 @@
     function TubetasticGame(canvasName) {
       var board,
         _this = this;
-      SeedRandom.init("TubeTastic!");
+      SeedRandom.init(Math.random());
       AsyncSoundManager.load('sh');
       AsyncSoundManager.load('boom');
       this.stage = new createjs.Stage(canvasName);
