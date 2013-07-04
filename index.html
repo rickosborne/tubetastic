@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TubeTastic</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <script src="lib/fastclick-0.6.7.js"></script>
+    <script src="lib/createjs-2013.05.14.min.js"></script>
+    <style type="text/css">
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+        body {
+            background-color: #333;
+        }
+        #gameCanvas {
+            margin: 20px auto;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            outline: thin solid #777;
+            display: block;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: rgba(255, 255, 255, 0); /* mobile webkit */
+        }
+        #debug {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(255,255,255,0.8);
+            color: black;
+            font-weight: bold;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+            line-height: 2;
+        }
+    </style>
+</head>
+<body>
+<canvas id="gameCanvas">
+    <p>This game is not supported in your browser.</p>
+</canvas>
+<!-- <p id="debug"></p> -->
+<script src="src/game.js"></script>
+</body>
+</html>
