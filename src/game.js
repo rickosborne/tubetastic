@@ -1135,8 +1135,17 @@
       this.stage.addChild(board);
       createjs.Touch.enable(this.stage, true, false);
       window.onresize = function() {
-        _this.stage.canvas.width = window.innerWidth;
-        _this.stage.canvas.height = window.innerHeight;
+        var backingStoreRatio, context, devicePixelRatio, ratio;
+        context = _this.stage.canvas.getContext('2d');
+        devicePixelRatio = window.devicePixelRatio || 1;
+        backingStoreRatio = context.webkitBackingStorePixelRatio || context.mozBackingStorePixelRatio || context.msBackingStorePixelRatio || context.oBackingStorePixelRatio || context.backingStorePixelRatio || 1;
+        ratio = devicePixelRatio / backingStoreRatio;
+        if (devicePixelRatio === backingStoreRatio) {
+          ratio = 1;
+        }
+        _this.stage.canvas.width = window.innerWidth * ratio;
+        _this.stage.canvas.height = window.innerHeight * ratio;
+        context.scale(ratio, ratio);
         return board.resize();
       };
       window.onresize();

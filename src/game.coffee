@@ -552,8 +552,14 @@ class TubetasticGame
     @stage.addChild board
     createjs.Touch.enable @stage, true, false
     window.onresize = =>
-      @stage.canvas.width = window.innerWidth
-      @stage.canvas.height = window.innerHeight
+      context = @stage.canvas.getContext '2d'
+      devicePixelRatio = window.devicePixelRatio || 1
+      backingStoreRatio = context.webkitBackingStorePixelRatio || context.mozBackingStorePixelRatio || context.msBackingStorePixelRatio || context.oBackingStorePixelRatio || context.backingStorePixelRatio || 1
+      ratio = devicePixelRatio / backingStoreRatio
+      ratio = 1 if devicePixelRatio == backingStoreRatio
+      @stage.canvas.width = window.innerWidth * ratio
+      @stage.canvas.height = window.innerHeight * ratio
+      context.scale ratio, ratio
       board.resize()
     window.onresize()
 
