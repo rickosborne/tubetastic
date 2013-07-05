@@ -475,13 +475,13 @@ class Splash extends createjs.Container
     w = @stage.canvas.width
     h = @stage.canvas.height
     @removeAllChildren()
-    title1 = new createjs.Text('Tube', (w / 10) + 'px Satisfy', Tile.arcColor)
+    title1 = new createjs.Text('Tube', Math.min(Math.max(w / 8, h / 8), w / 6) + 'px Satisfy', Tile.arcColor)
     title1.textAlign = 'right'
     title1.shadow = Tile.arcShadow[Tile.POWER_SOURCED]
     title1.regX = 0
     title1.regY = title1.getMeasuredHeight() / 2
     title1.y = h / 6
-    title2 = new createjs.Text('Tastic!', (w / 10) + 'px Satisfy', Tile.arcColor)
+    title2 = new createjs.Text('Tastic!', Math.min(Math.max(w / 8, h / 8), w / 6) + 'px Satisfy', Tile.arcColor)
     title2.textAlign = 'left'
     title2.shadow = Tile.arcShadow[Tile.POWER_SUNK]
     title2.regX = 0
@@ -491,7 +491,7 @@ class Splash extends createjs.Container
     title2.x = title1.x = (w - totalWidth) / 2 + title1.getMeasuredWidth()
     @addChild title1
     @addChild title2
-    credit = new createjs.Text('by Rick Osborne', (w / 64) + 'px Kite One', Tile.arcColor)
+    credit = new createjs.Text('by Rick Osborne', Math.max(w / 64, h / 64) + 'px Kite One', Tile.arcColor)
     credit.alpha = 0.25
     credit.shadow = Tile.arcShadow[Tile.POWER_NONE]
     credit.textAlign = 'center'
@@ -501,7 +501,7 @@ class Splash extends createjs.Container
     @addChild credit
     highScore = ScoreKeeper.getHighScore()
     if highScore > 0
-      score = new createjs.Text("High Score: #{highScore}", (w / 48) + 'px Kite One', Tile.arcColor)
+      score = new createjs.Text("High Score: #{highScore}", Math.min(Math.max(w / 32, h / 32), w / 16) + 'px Kite One', Tile.arcColor)
       score.alpha = 0.4
       score.shadow = Tile.arcShadow[Tile.POWER_NONE]
       score.textAlign = 'center'
@@ -523,7 +523,7 @@ class Splash extends createjs.Container
       start.y = y
       start.regY = tw / 2
       @addChild start
-      inst = new createjs.Text('Tap the square to complete the connection and start a new game.', (w / 36) + "px Kite One", Tile.arcColor)
+      inst = new createjs.Text('Tap the square to complete the connection and start a new game.', Math.min(Math.max(w / 36, h / 36), w / 20) + "px Kite One", Tile.arcColor)
       inst.lineWidth = w / 2
       inst.textAlign = 'center'
       inst.regX = 0
@@ -542,6 +542,7 @@ class StartButton extends createjs.Container
     @settled = true
     @
   resize: (@w, @h) =>
+    @removeAllChildren()
     source = new SourceTile(0, 1, 0, 0, @h, @)
     @addChild source
     @tile = new TubeTile(1, 0, @w / 3, 0, @h, @)
