@@ -252,6 +252,7 @@ class SinkTile extends Tile
     # d 'SinkTile::initialize(' + x + ',' + y + ',' + s + ')'
     super colNum, rowNum, x, y, s, board
     @outlets['W'] = true
+    @power = Tile.POWER_SUNK
     @resize x, y, s
   setPower: (power) =>
     return if power == @power
@@ -319,29 +320,25 @@ class TubeTile extends Tile
         @outletBits = prob.b[Math.floor(Math.random() * prob.b.length)]
         @outletCount = prob.c
         break
+    @setBits @outletBits
+    @spinRemain = 0
+    @tileSize = s
+    @resize x, y, s
+    @ready = true
+    # @addEventListener 'click', @onClick
+    AsyncSoundManager.load 'sh'
+  setBits: (@outletBits) =>
     @outlets =
       N: !!(@outletBits & 8)
       E: !!(@outletBits & 4)
       S: !!(@outletBits & 2)
       W: !!(@outletBits & 1)
-    @spinRemain = 0
-    @resize x, y, s
-    @ready = true
-    # @addEventListener 'click', @onClick
-    AsyncSoundManager.load 'sh'
-  resize: (x, y, s) =>
-    super x, y, s
-    @removeAllChildren()
-    gfxBack = TileGraphics.get 'tileBack'
-    unless gfxBack
-      gfxBack = new createjs.Graphics().beginFill(Tile.tileBack[Tile.POWER_NONE]).drawRoundRect(s * Tile.padding, s * Tile.padding, s * (1 - (2 * Tile.padding)), s * (1 - (2 * Tile.padding)), s * Tile.padding * 2)
-      TileGraphics.put 'tileBack', gfxBack
-    @back = new createjs.Shape(gfxBack)
-    @back.shadow = Tile.arcShadow[@power]
-    @addChild @back
+    @drawArc() if @arc
+  drawArc: =>
+    @removeChild @arc if @arc
     gfxArc = TileGraphics.get 'tileArc' + @outletBits
     unless gfxArc
-      gfxArc = new createjs.Graphics().setStrokeStyle(s / 8).beginStroke(Tile.arcColor)
+      gfxArc = new createjs.Graphics().setStrokeStyle(@tileSize / 8).beginStroke(Tile.arcColor)
       for path in outletPaths when (('b' of path) and (@outletBits == path.b)) or (('s' of path) and @outlets[path.s] and @outlets[path.d])
         gfxArc.moveTo(path.x2 * @midpoint, path.y2 * @midpoint)
         switch path.t
@@ -355,8 +352,20 @@ class TubeTile extends Tile
     @arc.x = @midpoint
     @arc.y = @midpoint
     @addChild @arc
+  resize: (x, y, s) =>
+    super x, y, s
+    @tileSize = s
+    @removeAllChildren()
+    gfxBack = TileGraphics.get 'tileBack'
+    unless gfxBack
+      gfxBack = new createjs.Graphics().beginFill(Tile.tileBack[Tile.POWER_NONE]).drawRoundRect(@tileSize * Tile.padding, s * Tile.padding, s * (1 - (2 * Tile.padding)), s * (1 - (2 * Tile.padding)), s * Tile.padding * 2)
+      TileGraphics.put 'tileBack', gfxBack
+    @back = new createjs.Shape(gfxBack)
+    @back.shadow = Tile.arcShadow[@power]
+    @addChild @back
+    @drawArc()
     @
-  onClick: =>
+  onClick: (evt) =>
     # console.log "TubeTile(#{@id})::click", evt, @board.ready
     return unless @board.ready
     @spinRemain++
@@ -417,10 +426,129 @@ class TubeTile extends Tile
       # console.log "skipping anim for Tile(#{@id}).drop"
     @
 
+class ProgressBar extends createjs.Container
+  constructor: (@progress, @w, @h) ->
+    @initialize @progress, @w, @h
+  initialize: (@progress, @w, @h) =>
+    super()
+    @resize @w, @h
+    @
+  resize: (@w, @h) =>
+    console.log 'bar:', @progress, @w, @h
+    padding = @h / 8
+    @removeAllChildren()
+    gfxBorder = new createjs.Graphics().beginFill(Tile.arcColor).drawRect(0, 0, @w, @h)
+    border = new createjs.Shape(gfxBorder)
+    border.shadow = Tile.arcShadow[Tile.POWER_NONE]
+    @addChild border
+    gfxBar = new createjs.Graphics().beginFill('#777').drawRect(padding, padding, (@w - (padding * 2)) * @progress, @h - (padding * 2))
+    bar = new createjs.Shape(gfxBar)
+    @addChild bar
+    @
+  setProgress: (@progress) => @resize @w, @h
+
+class Splash extends createjs.Container
+  constructor: (@stage, @onComplete) ->
+    @manifest = []
+    @progress = null
+    @lastProgress = 0
+    @addSoundToManifest 'sh'
+    @addSoundToManifest 'boom'
+    @initialize()
+    @resize()
+  addSoundToManifest: (id) =>
+    @manifest.push {id: id, src: "audio/tube-#{id}.ogg|audio/tube-#{id}.mp3|audio/tube-#{id}.wav"}
+  initialize: =>
+    super()
+    queue = new createjs.LoadQueue()
+    queue.installPlugin createjs.Sound
+    # queue.addEventListener 'complete', =>
+      # @progress?.alpha = 0.25
+    queue.addEventListener 'progress', (evt) =>
+      # console.log "loader progress: #{evt.progress}"
+      @lastProgress = evt.progress
+      @progress?.setProgress @lastProgress
+      @resize()
+      return
+    queue.loadManifest @manifest
+  resize: =>
+    w = @stage.canvas.width
+    h = @stage.canvas.height
+    @removeAllChildren()
+    title1 = new createjs.Text('Tube', (w / 10) + 'px Satisfy', Tile.arcColor)
+    title1.textAlign = 'right'
+    title1.shadow = Tile.arcShadow[Tile.POWER_SOURCED]
+    title1.regX = 0
+    title1.regY = title1.getMeasuredHeight() / 2
+    title1.y = h / 4
+    title2 = new createjs.Text('Tastic!', (w / 10) + 'px Satisfy', Tile.arcColor)
+    title2.textAlign = 'left'
+    title2.shadow = Tile.arcShadow[Tile.POWER_SUNK]
+    title2.regX = 0
+    title2.regY = title2.getMeasuredHeight() / 2
+    title2.y = h / 4
+    totalWidth = title1.getMeasuredWidth() + title2.getMeasuredWidth()
+    title2.x = title1.x = (w - totalWidth) / 2 + title1.getMeasuredWidth()
+    @addChild title1
+    @addChild title2
+    credit = new createjs.Text('by Rick Osborne', (w / 64) + 'px Kite One', Tile.arcColor)
+    credit.alpha = 0.25
+    credit.shadow = Tile.arcShadow[Tile.POWER_NONE]
+    credit.textAlign = 'center'
+    credit.x = (w / 2) + (totalWidth / 4)
+    credit.y = title2.y + (title2.getMeasuredHeight() / 2)
+    credit.regY = credit.getMeasuredHeight() / 2
+    @addChild credit
+    y = h * 3 / 5
+    tw = w / 13
+    if @lastProgress < 1
+      progress = new ProgressBar(@lastProgress, w / 2, title1.getMeasuredLineHeight() / 3)
+      progress.x = w / 4
+      progress.y = y
+      @addChild progress
+    else
+      start = new StartButton(tw * 3, tw, => @onComplete())
+      start.x = w / 2
+      start.regX = tw * 3 / 2
+      start.y = y
+      start.regY = tw / 2
+      @addChild start
+      inst = new createjs.Text('Tap the square to complete the connection and start a new game.', (w / 36) + "px Kite One", Tile.arcColor)
+      inst.lineWidth = w / 2
+      inst.textAlign = 'center'
+      inst.regX = 0
+      inst.regY = 0
+      inst.x = w / 2
+      inst.y = h * 3 / 4
+      @addChild inst
+
+class StartButton extends createjs.Container
+  constructor: (@w, @h, @onStart) ->
+    @initialize @w, @h
+  initialize: (@w, @h) ->
+    super()
+    @resize @w, @h
+    @ready = true
+    @settled = true
+    @
+  resize: (@w, @h) =>
+    source = new SourceTile(0, 1, 0, 0, @h, @)
+    @addChild source
+    @tile = new TubeTile(1, 0, @w / 3, 0, @h, @)
+    @tile.setBits 10
+    @addChild @tile
+    sink = new SinkTile(2, 0, @w * 2 / 3, 0, @h, @)
+    @addChild sink
+    @
+  interruptSweep: ->
+  readyForSweep: =>
+    return unless @tile.rotation == 90 or @tile.rotation == 270
+    @tile.vanish => @onStart()
+
 class GameBoard extends createjs.Container
   constructor: (@stage, @sourceCount, @hopDepth) ->
     # d 'new GameBoard(...,rows=' + @sourceCount + ',cols=' + @hopDepth + ')'
-    @initialize(@sourceCount, @hopDepth)
+    @initialize @sourceCount, @hopDepth
   initialize: (@sourceCount, @hopDepth) ->
     # d 'GameBoard::initialize(rows=' + @sourceCount + ',cols=' + @hopDepth + ')'
     super()
@@ -490,7 +618,7 @@ class GameBoard extends createjs.Container
       @ready = true
       @sweepTimer = null
       @settled = true
-      d 'powerSweep took ' + (Date.now() - sweepStart) + 'ms'
+      # d 'powerSweep took ' + (Date.now() - sweepStart) + 'ms'
       # console.log 'board ready'
     vanishCount = 0
     dropCount = 0
@@ -542,14 +670,15 @@ class TubetasticGame
   constructor: (canvasName) ->
     SeedRandom.init(Math.random())
     # d 'TubetasticGame'
-    AsyncSoundManager.load 'sh'
-    AsyncSoundManager.load 'boom'
+    # AsyncSoundManager.load 'sh'
+    # AsyncSoundManager.load 'boom'
     @stage = new createjs.Stage(canvasName)
     createjs.Ticker.setFPS 30
     createjs.Ticker.useRAF = true
     createjs.Ticker.addEventListener 'tick', => @stage.update()
-    board = new GameBoard(@stage, 8, 7)
-    @stage.addChild board
+    @splash = new Splash(@stage, @loaded)
+    @stage.addChild @splash
+    @board = null
     createjs.Touch.enable @stage, true, false
     window.onresize = =>
       context = @stage.canvas.getContext '2d'
@@ -560,7 +689,13 @@ class TubetasticGame
       @stage.canvas.width = window.innerWidth * ratio
       @stage.canvas.height = window.innerHeight * ratio
       context.scale ratio, ratio
-      board.resize()
+      @board?.resize()
+      @splash?.resize()
     window.onresize()
+  loaded: =>
+    @stage.removeAllChildren()
+    @splash = null
+    @board = new GameBoard(@stage, 8, 7)
+    @stage.addChild @board
 
 new TubetasticGame('gameCanvas')
