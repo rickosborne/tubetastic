@@ -119,20 +119,20 @@ class SeedRandom
       shortseed
     mixkey(math.random(), pool)
 
+class ScoreKeeper
+  @setScore: (score) =>
+    # console.log "setScore:#{score}"
+    if (window.localStorage) and (score > @getHighScore())
+      window.localStorage.setItem('score:high', score)
+  @getHighScore: =>
+    return 0 unless window.localStorage
+    highScore = window.localStorage.getItem('score:high') || 0
+    # console.log "highScore:#{highScore}"
+    return 0 if isNaN highScore
+    return parseInt highScore
+
 class AsyncSoundManager
   sounds = {}
-  onSoundReady = (evt) =>
-    # console.log evt
-    sounds[evt.id] = evt
-    return
-  createjs.Sound.addEventListener 'fileload', createjs.proxy(onSoundReady, @)
-  @load: (id) =>
-    unless id of sounds
-      paths = "audio/tube-#{id}.ogg|audio/tube-#{id}.mp3|audio/tube-#{id}.wav"
-      sounds[id] = true
-      # console.log "load #{paths}", sounds
-      createjs.Sound.registerSound paths, id
-    @
   @play: (id, volume = 1.0) =>
     if sounds[id]
       createjs.Sound.play(id).setVolume(volume)
@@ -326,7 +326,7 @@ class TubeTile extends Tile
     @resize x, y, s
     @ready = true
     # @addEventListener 'click', @onClick
-    AsyncSoundManager.load 'sh'
+    # AsyncSoundManager.load 'sh'
   setBits: (@outletBits) =>
     @outlets =
       N: !!(@outletBits & 8)
@@ -434,7 +434,7 @@ class ProgressBar extends createjs.Container
     @resize @w, @h
     @
   resize: (@w, @h) =>
-    console.log 'bar:', @progress, @w, @h
+    # console.log 'bar:', @progress, @w, @h
     padding = @h / 8
     @removeAllChildren()
     gfxBorder = new createjs.Graphics().beginFill(Tile.arcColor).drawRect(0, 0, @w, @h)
@@ -480,13 +480,13 @@ class Splash extends createjs.Container
     title1.shadow = Tile.arcShadow[Tile.POWER_SOURCED]
     title1.regX = 0
     title1.regY = title1.getMeasuredHeight() / 2
-    title1.y = h / 4
+    title1.y = h / 6
     title2 = new createjs.Text('Tastic!', (w / 10) + 'px Satisfy', Tile.arcColor)
     title2.textAlign = 'left'
     title2.shadow = Tile.arcShadow[Tile.POWER_SUNK]
     title2.regX = 0
     title2.regY = title2.getMeasuredHeight() / 2
-    title2.y = h / 4
+    title2.y = title1.y
     totalWidth = title1.getMeasuredWidth() + title2.getMeasuredWidth()
     title2.x = title1.x = (w - totalWidth) / 2 + title1.getMeasuredWidth()
     @addChild title1
@@ -496,9 +496,19 @@ class Splash extends createjs.Container
     credit.shadow = Tile.arcShadow[Tile.POWER_NONE]
     credit.textAlign = 'center'
     credit.x = (w / 2) + (totalWidth / 4)
-    credit.y = title2.y + (title2.getMeasuredHeight() / 2)
-    credit.regY = credit.getMeasuredHeight() / 2
+    credit.y = title2.y + (title2.getMeasuredLineHeight() * 0.6)
+    credit.regY = 0
     @addChild credit
+    highScore = ScoreKeeper.getHighScore()
+    if highScore > 0
+      score = new createjs.Text("High Score: #{highScore}", (w / 48) + 'px Kite One', Tile.arcColor)
+      score.alpha = 0.4
+      score.shadow = Tile.arcShadow[Tile.POWER_NONE]
+      score.textAlign = 'center'
+      score.x = w / 2
+      score.regY = score.getMeasuredHeight() / 2
+      score.y = h * 2 / 5
+      @addChild score
     y = h * 3 / 5
     tw = w / 13
     if @lastProgress < 1
@@ -545,6 +555,41 @@ class StartButton extends createjs.Container
     return unless @tile.rotation == 90 or @tile.rotation == 270
     @tile.vanish => @onStart()
 
+class GameMenu extends createjs.Container
+  @digitCount = 9
+  constructor: (@w, @h) ->
+    @initialize @w, @h
+  initialize: (@w, @h) ->
+    super()
+    @score = 0
+    @resize @w, @h
+    @
+  resize: (@w, @h) =>
+    @removeAllChildren()
+    back = new createjs.Shape()
+    back.graphics.beginFill('#000').drawRoundRect(0, 0, @w, @h, @h / 2)
+    @addChild back
+    @digits = []
+    y = @h * TubetasticGame.fontFudge
+    tw = @w / (GameMenu.digitCount + 1)
+    for digitNum in [0..GameMenu.digitCount-1]
+      digit = new createjs.Text('0', @h + 'px Kite One', Tile.arcColor)
+      digit.textAlign = 'center'
+      digit.regX = 0
+      # digit.regY = digit.getMeasuredLineHeight() / 2
+      digit.x = tw * (digitNum + 1)
+      digit.y = y
+      digit.lineHeight = @h
+      @digits.push digit
+      @addChild digit
+    @setScore @score
+    @
+  setScore: (@score) =>
+    n = @score
+    for digitNum in [GameMenu.digitCount-1..0] by -1
+      @digits[digitNum].text = n % 10
+      n = Math.floor(n / 10)
+
 class GameBoard extends createjs.Container
   constructor: (@stage, @sourceCount, @hopDepth) ->
     # d 'new GameBoard(...,rows=' + @sourceCount + ',cols=' + @hopDepth + ')'
@@ -553,6 +598,7 @@ class GameBoard extends createjs.Container
     # d 'GameBoard::initialize(rows=' + @sourceCount + ',cols=' + @hopDepth + ')'
     super()
     @board = []
+    @menu = null
     @resize()
     for rowNum in [0..@sourceCount-1]
       row = []
@@ -567,14 +613,23 @@ class GameBoard extends createjs.Container
         row.push tile
       @board.push row
     @settled = false
+    @score = 0
+    @menu = new GameMenu(@tileSize * @hopDepth, @tileSize * 0.8)
+    @menu.alpha = 0.25
+    @menu.x = 0
+    @menu.y = @yForRow(@sourceCount) + (@tileSize * 0.2) # one extra
+    @addChild @menu
     @powerSweep()
     return
   resize: =>
-    @tileSize = Math.floor Math.min(@stage.canvas.width / @hopDepth, @stage.canvas.height / @sourceCount)
+    @tileSize = Math.floor Math.min(@stage.canvas.width / @hopDepth, @stage.canvas.height / (@sourceCount + 1))
     @x = Math.floor (@stage.canvas.width - (@tileSize * @hopDepth)) / 2
-    @y = Math.floor (@stage.canvas.height - (@tileSize * @sourceCount)) / 2
-    console.log "board #{@x},#{@y} size:#{@tileSize} #{@stage.canvas.width}x#{@stage.canvas.height}"
+    @y = Math.floor (@stage.canvas.height - (@tileSize * (@sourceCount + 1))) / 2
+    # console.log "board #{@x},#{@y} size:#{@tileSize} #{@stage.canvas.width}x#{@stage.canvas.height}"
     TileGraphics.resize()
+    if @menu
+      @menu.y = @yForRow(@sourceCount) + (@tileSize * 0.2) # one extra
+      @menu.resize @tileSize * @hopDepth, @tileSize * 0.8
     for row, rowNum in @board
       for tile, colNum in row
         tile.resize @xForColumn(colNum), @yForRow(rowNum), @tileSize
@@ -595,6 +650,7 @@ class GameBoard extends createjs.Container
     sunk = {}
     neither = {}
     toRemove = {}
+    points = 0
     for rowNum in [0..@sourceCount-1]
       for colNum in [0..@hopDepth-1]
         neither[Tile.makeId(colNum, rowNum)] = @board[rowNum][colNum]
@@ -627,7 +683,7 @@ class GameBoard extends createjs.Container
     onVanished = =>
       vanishCount--
       return unless vanishCount <= 0
-      console.log 'all destroyed'
+      # console.log 'all destroyed'
       onDropped = (tile, colNum, rowNum) =>
         dropCount--
         @board[rowNum][colNum] = tile
@@ -660,13 +716,23 @@ class GameBoard extends createjs.Container
       continue unless tile instanceof TubeTile
       toVanish.push tile
       vanishCount++
-    tile.vanish onVanished for tile in toVanish
+    for tile in toVanish
+      tile.vanish onVanished
+      points++
+    if @settled
+      @score += points
+      @menu.setScore @score
+      ScoreKeeper.setScore @score
     @
   tileAt: (colNum, rowNum) =>
     return @board[rowNum][colNum] if (colNum >= 0) and (colNum < @hopDepth) and (rowNum >= 0) and (rowNum < @sourceCount)
     return null
 
 class TubetasticGame
+  @fontFudge = switch
+    when navigator.userAgent.indexOf('Safari') > -1 then -0.166667
+    when navigator.userAgent.indexOf('Firefox') > -1 then 0.166667
+    else 0
   constructor: (canvasName) ->
     SeedRandom.init(Math.random())
     # d 'TubetasticGame'
